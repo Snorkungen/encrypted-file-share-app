@@ -1,7 +1,7 @@
 import React from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Card, Text, Input, Button } from "@nextui-org/react";
-import { read } from "fs";
+import { UploadResponse } from "../pages/api/upload";
 
 type FormValues = {
     files: FileList;
@@ -11,76 +11,82 @@ export const UploadFile = () => {
     const { register, handleSubmit } = useForm<FormValues>();
 
     const onSubmit: SubmitHandler<FormValues> = async ({ files }) => {
-
+        const file = files[0];
         try {
-            const CHUNK_SIZE = 100 * 1000 * 8;
-            let counter = window.crypto.getRandomValues(new Uint8Array(16));;
+            const get_response = await fetch("/api/upload?size=" + file.size);
+            const { chunkSize, id } = await get_response.json() as UploadResponse;
+            let counter = window.crypto.getRandomValues(new Uint8Array(16));
             const key = await window.crypto.subtle.generateKey({
                 name: "AES-CTR",
                 length: 256
             }, true, ["encrypt", "decrypt"]);
 
-            for (let file of Array.from(files)) {
-                const reader = new FileReader();
-                let chunkSize = 0;
+            let chunkCount = 0;
+
+            const reader = new FileReader();
+
+            let firstChunk = Buffer.from(
+                JSON.stringify({
+                    filename: file.name,
+                    type: file.type,
+                    chunkSize,
+                    chunkAmount: Math.ceil(file.size / chunkSize)
+                })
+            );
 
 
+            counter = window.crypto.getRandomValues(new Uint8Array(16));
+            let enc_firstChunk = await window.crypto.subtle.encrypt({
+                name: "AES-CTR",
+                counter,
+                length: 64
+            }, key, firstChunk);
 
-                let firstChunk = Buffer.from(
-                    JSON.stringify({
-                        filename: file.name,
-                        type: file.type,
-                        chunkSize: CHUNK_SIZE,
-                        chunkCount: Math.ceil(file.size / CHUNK_SIZE)
+            let response = await fetch("/api/upload", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    data: Buffer.from(enc_firstChunk).toString("base64"),
+                    id,
+                    count: chunkCount,
+                })
+            })
+
+            reader.readAsArrayBuffer(file.slice(chunkCount * chunkSize, chunkSize * (chunkCount + 1)))
+
+            reader.onloadend = async () => {
+                if (!reader.result) return;
+                chunkCount++;
+                counter = window.crypto.getRandomValues(new Uint8Array(16));
+
+                let enc_chunk = await window.crypto.subtle.encrypt({
+                    name: "AES-CTR",
+                    counter,
+                    length: 64
+                }, key, reader.result as ArrayBuffer),
+                    data = Buffer.from(enc_chunk).toString("base64")
+
+                response = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        data,
+                        id,
+                        count: chunkCount,
                     })
-                ).toString("base64");
-
-                let exprtdKey = await window.crypto.subtle.exportKey("raw", key),
-                    exprtdKeyBase64 = Buffer.from(exprtdKey).toString("base64");
-
-                console.log(firstChunk,exprtdKeyBase64)
-
-                reader.readAsArrayBuffer(file.slice(chunkSize, CHUNK_SIZE + chunkSize))
-
-                reader.onloadend = async () => {
-                    if (!reader.result) return;
-                    counter = window.crypto.getRandomValues(new Uint8Array(16));
-
-                    let enc_chunk = await window.crypto.subtle.encrypt({
-                        name: "AES-CTR",
-                        counter,
-                        length: 64
-                    }, key, reader.result as ArrayBuffer),
-                        enc_buf = Buffer.from(enc_chunk).toString("base64")
-
-                    let dec_buf = Buffer.from(enc_buf, "base64"),
-                        dec_chunk = await window.crypto.subtle.decrypt({
-                            name: "AES-CTR",
-                            counter,
-                            length: 64
-                        }, key, dec_buf);
+                })
 
 
-
-                    console.log(
-                        Buffer.from(dec_chunk).toString("utf-8")
-                    )
-
-                    console.log(
-                        new File([dec_chunk], file.name),
-                        file
-                    )
-
-
-                    chunkSize += CHUNK_SIZE;
-                    if (chunkSize > file.size) return;
-                    reader.readAsArrayBuffer(file.slice(chunkSize, CHUNK_SIZE + chunkSize))
-                }
-
-
-                
+                if (chunkCount * chunkSize > file.size) return;
+                reader.readAsArrayBuffer(file.slice(chunkCount * chunkSize, chunkSize * (chunkCount + 1)))
             }
 
+            let exprtdKey = await window.crypto.subtle.exportKey("raw", key),
+                exprtdKeyBase64 = Buffer.from(exprtdKey).toString("base64");
 
         } catch (error) {
             console.log(error)
