@@ -7,66 +7,86 @@ type FormValues = {
     files: FileList;
 }
 
+export const META_DATA_SEPARATOR = "---------";
+
+const concatenateArrayBuffers = (...arrayBuffers: Array<ArrayBuffer>) => {
+    let size = arrayBuffers.reduce((sum, { byteLength }) => sum + byteLength, 0);
+    let finalBuffer = new Uint8Array(size);
+    let offset = 0;
+
+    for (let arr of arrayBuffers) {
+        finalBuffer.set(new Uint8Array(arr), offset);
+        offset += arr.byteLength
+    }
+
+    return Buffer.from(finalBuffer);
+}
+
+const finalSize = (num: number) => {
+
+    return Math.floor(((num * 4) / 3) + (num / 96)) + 6;
+}
+
+const encrypt = async (key: CryptoKey, data: ArrayBuffer, counter: Uint8Array) => window.crypto.subtle.encrypt({
+    name: "AES-CTR",
+    counter,
+    length: 64
+}, key, data);
+
+
 export const UploadFile = () => {
     const { register, handleSubmit } = useForm<FormValues>();
 
     const onSubmit: SubmitHandler<FormValues> = async ({ files }) => {
         const file = files[0];
         try {
-            const get_response = await fetch("/api/upload?size=" + file.size);
+            let meta_data = JSON.stringify({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+            }) + META_DATA_SEPARATOR;
+
+            const get_response = await fetch("/api/upload?size=" + finalSize(file.size + meta_data.length));
+            if (get_response.status !== 200) return;
             const { chunkSize, id } = await get_response.json() as UploadResponse;
-            let counter = window.crypto.getRandomValues(new Uint8Array(16));
+
             const key = await window.crypto.subtle.generateKey({
                 name: "AES-CTR",
                 length: 256
             }, true, ["encrypt", "decrypt"]);
 
+            let exprtdKey = await window.crypto.subtle.exportKey("raw", key),
+                exprtdKeyBase64 = Buffer.from(exprtdKey).toString("base64");
+
+            let importedKey = await window.crypto.subtle.importKey("raw", Buffer.from(exprtdKeyBase64, "base64"), {
+                name: "AES-CTR",
+                length: 256
+            }, true, ["encrypt", "decrypt"])
+
             let chunkCount = 0;
 
             const reader = new FileReader();
 
-            let firstChunk = Buffer.from(
-                JSON.stringify({
-                    filename: file.name,
-                    type: file.type,
-                    chunkSize,
-                    chunkAmount: Math.ceil(file.size / chunkSize)
-                })
-            );
+            let response;
 
-
-            counter = window.crypto.getRandomValues(new Uint8Array(16));
-            let enc_firstChunk = await window.crypto.subtle.encrypt({
-                name: "AES-CTR",
-                counter,
-                length: 64
-            }, key, firstChunk);
-
-            let response = await fetch("/api/upload", {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    data: Buffer.from(enc_firstChunk).toString("base64"),
-                    id,
-                    count: chunkCount,
-                })
-            })
-
-            reader.readAsArrayBuffer(file.slice(chunkCount * chunkSize, chunkSize * (chunkCount + 1)))
+            reader.readAsArrayBuffer(file.slice(0, chunkSize - meta_data.length))
 
             reader.onloadend = async () => {
                 if (!reader.result) return;
-                chunkCount++;
-                counter = window.crypto.getRandomValues(new Uint8Array(16));
+                let result = reader.result as ArrayBuffer;
 
-                let enc_chunk = await window.crypto.subtle.encrypt({
-                    name: "AES-CTR",
-                    counter,
-                    length: 64
-                }, key, reader.result as ArrayBuffer),
-                    data = Buffer.from(enc_chunk).toString("base64")
+                let counter = window.crypto.getRandomValues(new Uint8Array(16))
+                if (chunkCount == 0) {
+                    result = concatenateArrayBuffers(
+                        Buffer.from(meta_data, "utf8"),
+                        result
+                    );
+                }
+
+                if (result.byteLength < 1) return;
+
+                let enc_chunk = await encrypt(key, result, counter),
+                    data = Buffer.from(concatenateArrayBuffers(counter, enc_chunk)).toString("base64")
 
                 response = await fetch("/api/upload", {
                     method: "POST",
@@ -78,15 +98,15 @@ export const UploadFile = () => {
                         id,
                         count: chunkCount,
                     })
-                })
+                });
 
-
-                if (chunkCount * chunkSize > file.size) return;
+                if (chunkCount * chunkSize >= finalSize(file.size + meta_data.length)) return;
+                chunkCount++;
                 reader.readAsArrayBuffer(file.slice(chunkCount * chunkSize, chunkSize * (chunkCount + 1)))
             }
 
-            let exprtdKey = await window.crypto.subtle.exportKey("raw", key),
-                exprtdKeyBase64 = Buffer.from(exprtdKey).toString("base64");
+
+            console.log("/file/" + id + "#" + exprtdKeyBase64)
 
         } catch (error) {
             console.log(error)
