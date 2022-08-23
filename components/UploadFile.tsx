@@ -9,7 +9,7 @@ type FormValues = {
 
 export const META_DATA_SEPARATOR = "---------";
 
-const concatenateArrayBuffers = (...arrayBuffers: Array<ArrayBuffer>) => {
+export const concatenateArrayBuffers = (...arrayBuffers: Array<ArrayBuffer>) => {
     let size = arrayBuffers.reduce((sum, { byteLength }) => sum + byteLength, 0);
     let finalBuffer = new Uint8Array(size);
     let offset = 0;
@@ -19,7 +19,7 @@ const concatenateArrayBuffers = (...arrayBuffers: Array<ArrayBuffer>) => {
         offset += arr.byteLength
     }
 
-    return Buffer.from(finalBuffer);
+    return Buffer.from(finalBuffer).buffer;
 }
 
 const finalSize = (num: number) => {
@@ -45,6 +45,7 @@ export const UploadFile = () => {
                 type: file.type,
                 size: file.size,
             }) + META_DATA_SEPARATOR;
+
 
             const get_response = await fetch("/api/upload?size=" + finalSize(file.size + meta_data.length));
             if (get_response.status !== 200) return;
@@ -100,14 +101,15 @@ export const UploadFile = () => {
                     })
                 });
 
-                if (chunkCount * chunkSize >= finalSize(file.size + meta_data.length)) return;
                 chunkCount++;
-                reader.readAsArrayBuffer(file.slice(chunkCount * chunkSize, chunkSize * (chunkCount + 1)))
+                if (chunkCount === 1) {
+                    reader.readAsArrayBuffer(file.slice((chunkCount * chunkSize) - meta_data.length, chunkSize * (chunkCount + 1)))
+                } else {
+                    reader.readAsArrayBuffer(file.slice((chunkCount * chunkSize), chunkSize * (chunkCount + 1)))
+                }
             }
 
-
             console.log("/file/" + id + "#" + exprtdKeyBase64)
-
         } catch (error) {
             console.log(error)
         }
@@ -122,7 +124,7 @@ export const UploadFile = () => {
                     <Text h2>File Upload</Text>
                 </Card.Header>
                 <Card.Body>
-                    <Input type="file" label="File" {...register("files", { required: true })} />
+                    <Input id="sdhj" type="file" label="File" {...register("files", { required: true })} />
                 </Card.Body>
                 <Card.Footer>
                     <Button type="submit">Upload</Button>
