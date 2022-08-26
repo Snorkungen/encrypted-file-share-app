@@ -2,11 +2,7 @@ const ID_LENGTH = 30;
 
 export default function createId(num: number) {
     let buffer = (Buffer.from(num + "")).toString("hex");
-    let id = ""
+    let id = "" + num + Math.random().toFixed(3).substring(2);
 
-    for (let i = 0; i < ID_LENGTH - buffer.length; i++) {
-        id += "A"
-    }
-
-    return id + buffer;
+    return Buffer.from(id).toString("base64");
 }

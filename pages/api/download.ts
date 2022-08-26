@@ -16,7 +16,6 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
         if (query.rowCount !== 1) return res.status(404).end()
 
-
         return res.json(query.rows[0]);
     }
 }

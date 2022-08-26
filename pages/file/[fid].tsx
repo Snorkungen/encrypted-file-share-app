@@ -1,51 +1,58 @@
-import { Container, css } from "@nextui-org/react";
-import { NextPage } from "next";
-import Head from 'next/head'
+import React, { useEffect, useState } from "react";
+import { Card, Container, Text, Loading, Link } from "@nextui-org/react";
+import PageContainer from "../../components/PageContainer";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import LoadFile from "../../lib/LoadFile";
-
+import { NextPage } from "next";
+import Head from "next/head";
+import downloadFile from "../../lib/downloadFile";
 
 
 const FilePage: NextPage = () => {
     const router = useRouter();
     const { fid } = router.query;
-    const [file, setFile] = useState<File | null>(null);
-    const [image, setImage] = useState("");
+
+    let [isLoading, setIsLoading] = useState(true);
+    let [file, setFile] = useState<File | undefined>(undefined);
+    let [failed, setFailed] = useState(false);
 
     useEffect(() => {
         if (typeof fid !== "string") return;
-        new LoadFile(fid, location.hash.substring(1)).loadKey().then(async (ld) => {
-            await ld.load();
-            // if (!ld.done) return;
-            console.log(URL.createObjectURL(ld.blob))
-            setFile(ld.file);
-        });
-
-
+        downloadFile(fid, location.hash.substring(1)).then(({ failed, file }) => {
+            setIsLoading(false);
+            if (failed) {
+                setFailed(true);
+            } else {
+                setFile(file);
+            }
+        })
 
     }, [fid])
 
-    useEffect(() => {
-        if (!file) return;
-
-        console.log(file)
-
-        if (file.type.includes("image")) setImage(URL.createObjectURL(file));
-
-    }, [file])
 
     return (
-        <>
+        <PageContainer>
             <Head>
-                <title>EFSA </title>
+                <title>EFSA Download</title>
             </Head>
-            <Container fluid display="flex" justify="center" alignItems="center" css={{ h: "100vh", background: "$background" }}>
-                <div>
-                    {image && <img src={image} />}
-                </div>
-            </Container>
-        </>
+            <Card css={{ mw: "440px" }}>
+                <Card.Header>
+                    <Text b h2>Download File</Text>
+                </Card.Header>
+                <Card.Body>
+                    {isLoading ? <Loading type="points" /> :
+                        !file ? <Text color="warning" >Loading of file failed.</Text> :
+                            (<Container justify="center" alignContent="center" display="flex">
+                                <Link
+                                    color="secondary"
+                                    as="a"
+                                    download={file.name}
+                                    href={URL.createObjectURL(file)}
+                                >Download {file.name}</Link>
+                            </Container>
+                            )}
+                </Card.Body>
+            </Card>
+        </PageContainer>
     )
 }
 

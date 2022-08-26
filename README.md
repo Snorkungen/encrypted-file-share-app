@@ -4,6 +4,9 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 First, run the development server:
 
+first view ./sample.env.local and ./database.sql 
+
+
 ```bash
 npm run dev
 # or
