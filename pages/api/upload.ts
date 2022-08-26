@@ -15,7 +15,7 @@ export interface UploadResponse {
 
 const CHUNK_SIZE = 2 * 16 * 1000 * 8;
 
-export default async (req: NextApiRequest, res: NextApiResponse<UploadResponse>) => {
+export default async function uploadHandler (req: NextApiRequest, res: NextApiResponse<UploadResponse>)  {
     if (req.method == "GET") {
 
         let query = await pool.query("SELECT COUNT(*) FROM chunks GROUP BY file_id");

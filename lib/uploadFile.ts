@@ -4,7 +4,7 @@ import {
     KEY_PROPS_ALGORITHM,
     KEY_PROPS_EXTRACTABLE,
     KEY_PROPS_KEY_USAGES,
-    useAlgorithm
+    algorithm
 } from "./crypto";
 
 type UploadFileReturnType = { id?: string, key?: string, failed: boolean };
@@ -44,7 +44,7 @@ export default async function uploadFile(file: File): Promise<UploadFileReturnTy
                 }
 
                 let counter = window.crypto.getRandomValues(new Uint8Array(16))
-                let encryptedData = await window.crypto.subtle.encrypt(useAlgorithm(counter), key, result);
+                let encryptedData = await window.crypto.subtle.encrypt(algorithm(counter), key, result);
 
                 response = await fetch("/api/upload", {
                     method: "POST",

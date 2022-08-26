@@ -5,7 +5,7 @@ export const KEY_PROPS_EXTRACTABLE = true as const;
 export const KEY_PROPS_KEY_USAGES = ["encrypt", "decrypt"] as const;
 
 
-export const useAlgorithm = (counter: ArrayBuffer) => {
+export const algorithm = (counter: ArrayBuffer) => {
     return {
         name: "AES-CTR",
         counter,

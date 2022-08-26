@@ -6,7 +6,7 @@ export type DownloadQuery = {
     count?: number;
 }
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export default async function downloadHandler (req: NextApiRequest, res: NextApiResponse) {
     if (req.method == "GET") {
         let { id, count } = req.query as DownloadQuery;
         if (id == undefined) return res.status(400).end()

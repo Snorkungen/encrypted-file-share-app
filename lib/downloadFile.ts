@@ -4,7 +4,7 @@ import {
     KEY_PROPS_ALGORITHM,
     KEY_PROPS_EXTRACTABLE,
     KEY_PROPS_KEY_USAGES,
-    useAlgorithm,
+    algorithm,
     MetaDataType,
     concatenateArrayBuffers
 } from "./crypto";
@@ -27,7 +27,7 @@ export default async function downLoadFile(id: string, keyStr: string): Promise<
         // Decrypt data
         let { buffer } = Buffer.from(data, "base64");
         let counter = buffer.slice(0, COUNTER_LENGTH);
-        return await window.crypto.subtle.decrypt(useAlgorithm(counter), key, buffer.slice(COUNTER_LENGTH));
+        return await window.crypto.subtle.decrypt(algorithm(counter), key, buffer.slice(COUNTER_LENGTH));
     }
 
     try {
