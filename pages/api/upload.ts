@@ -1,6 +1,7 @@
-import pool from '../../lib/db';
+// import pool from '../../lib/db';
 import createId from '../../lib/createId';
 import type { NextApiRequest, NextApiResponse } from 'next'
+import Chunk from '../../lib/models/chunk.model';
 
 export interface UploadBody {
     id: string;
@@ -15,11 +16,13 @@ export interface UploadResponse {
 
 const CHUNK_SIZE = 2 * 16 * 1000 * 8;
 
-export default async function uploadHandler (req: NextApiRequest, res: NextApiResponse<UploadResponse>)  {
+export default async function uploadHandler(req: NextApiRequest, res: NextApiResponse<UploadResponse>) {
     if (req.method == "GET") {
+        let query = await Chunk.count({
+            group: "file_id"
+        });
 
-        let query = await pool.query("SELECT COUNT(*) FROM chunks GROUP BY file_id");
-        let id = createId(query.rows.length ? Number(query.rowCount) : 0);
+        let id = createId(query.length || 0);
 
         return res.json({
             id,
@@ -32,7 +35,13 @@ export default async function uploadHandler (req: NextApiRequest, res: NextApiRe
         if (data === undefined) return res.status(400).end();
         if (count === undefined) return res.status(400).end();
 
-        await pool.query("INSERT INTO chunks(file_id,count,data,length) VALUES ($1, $2, $3,$4)", [id, count, data, data.length]);
+        await Chunk.create({
+            file_id: id,
+            count,
+            data,
+            length: data.length
+        });
+
         return res.status(204).end();
     }
 }
