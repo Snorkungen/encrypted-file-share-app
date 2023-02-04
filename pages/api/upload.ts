@@ -16,25 +16,28 @@ export interface UploadResponse {
 const CHUNK_SIZE = 2 * 16 * 1000 * 8;
 
 export default async function uploadHandler(req: NextApiRequest, res: NextApiResponse<UploadResponse>) {
-    if (req.method == "GET") {
-        let query = await Chunk.count({
-            group: "file_id"
-        });
+    try {
+        await Chunk.sync();
 
-        let id = createId(query.length || 0);
+        if (req.method == "GET") {
+            let query = await Chunk.count({
+                group: "file_id"
+            });
 
-        return res.json({
-            id,
-            chunkSize: CHUNK_SIZE
-        })
-    } else if (req.method = "POST") {
-        const { id, data, count } = req.body as UploadBody;
+            let id = createId(query.length || 0);
 
-        if (id === undefined) return res.status(400).end();
-        if (data === undefined) return res.status(400).end();
-        if (count === undefined) return res.status(400).end();
+            return res.json({
+                id,
+                chunkSize: CHUNK_SIZE
+            })
+        } else if (req.method = "POST") {
+            const { id, data, count } = req.body as UploadBody;
 
-        try {
+            if (id === undefined) return res.status(400).end();
+            if (data === undefined) return res.status(400).end();
+            if (count === undefined) return res.status(400).end();
+
+
             await Chunk.create({
                 file_id: id,
                 count,
@@ -43,8 +46,8 @@ export default async function uploadHandler(req: NextApiRequest, res: NextApiRes
             });
 
             return res.status(204).end();
-        } catch (error) {
-            return res.status(500).end();
         }
+    } catch (error) {
+        return res.status(500).json(error as any);
     }
 }

@@ -12,16 +12,22 @@ export default async function downloadHandler(req: NextApiRequest, res: NextApiR
         if (id == undefined) return res.status(400).end()
         if (count == undefined) return res.status(400).end()
 
-        let query = await Chunk.findOne({
-            attributes: ["file_id", "data", "length"],
-            where: {
-                file_id: id,
-                count
-            }
-        });
+        try {
+            Chunk.sync();
 
-        if (!query) return res.status(404).end()
+            let query = await Chunk.findOne({
+                attributes: ["file_id", "data", "length"],
+                where: {
+                    file_id: id,
+                    count
+                }
+            });
 
-        return res.json(query);
+            if (!query) return res.status(404).end()
+
+            return res.json(query);
+        } catch (error) {
+            return res.status(500).end()
+        }
     }
 }
