@@ -1,11 +1,10 @@
-import { Button, Card, Input, Row, Text, Loading, Grid, Col, FormElement } from "@nextui-org/react";
 import { NextPage } from "next";
+import { Button, Card, Input, Row, Text, Loading, FormElement } from "@nextui-org/react";
 import Head from "next/head";
 import uploadFile from "../../lib/uploadFile";
 import { useForm, SubmitHandler } from "react-hook-form";
 import PageContainer from "../../components/PageContainer";
-import Link from "next/link";
-import React, { InputHTMLAttributes } from "react";
+import React from "react";
 
 type FormValues = {
     files: FileList;
@@ -22,8 +21,8 @@ const UploadPage: NextPage = () => {
     const { register, handleSubmit, setValue, getValues, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm<FormValues>();
 
     const onSubmit: SubmitHandler<FormValues> = async ({ files }) => {
-
-        let { failed, id, key } = await uploadFile(files[0]);
+        let file = files[0];
+        let { failed, id, key } = await uploadFile(file);
         setValue("failed", failed);
         if (id && key) {
             setValue("id", id);

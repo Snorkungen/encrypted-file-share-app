@@ -1,4 +1,3 @@
-// import pool from '../../lib/db';
 import createId from '../../lib/createId';
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Chunk from '../../lib/models/chunk.model';
@@ -35,13 +34,17 @@ export default async function uploadHandler(req: NextApiRequest, res: NextApiRes
         if (data === undefined) return res.status(400).end();
         if (count === undefined) return res.status(400).end();
 
-        await Chunk.create({
-            file_id: id,
-            count,
-            data,
-            length: data.length
-        });
+        try {
+            await Chunk.create({
+                file_id: id,
+                count,
+                data,
+                length: data.length
+            });
 
-        return res.status(204).end();
+            return res.status(204).end();
+        } catch (error) {
+            return res.status(500).end();
+        }
     }
 }
